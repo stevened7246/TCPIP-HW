@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
         auto ready = started.get_future();
         std::thread worker([&] {
             try {
-                server.run(static_cast<unsigned short>(port), argc > 2 ? argv[2] : "127.0.0.1",
+                server.run(static_cast<unsigned short>(port), argc > 2 ? argv[2] : "0.0.0.0", 
                            started);
             } catch (...) {
                 failure = std::current_exception();

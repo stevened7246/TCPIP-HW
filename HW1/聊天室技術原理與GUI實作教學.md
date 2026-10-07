@@ -521,7 +521,7 @@ while (receivePacket(client, packet)) {
 ### 8.1 啟動順序
 
 1. `WSAStartup` 初始化 Winsock。
-2. 讀取 port 與監聽位址；預設為 `127.0.0.1:9000`。
+2. 讀取 port 與監聽位址；預設為 `0.0.0.0:9000`，監聽所有本機 IPv4 介面。
 3. 建立執行 `Server::run` 的執行緒。
 4. `Server::run` 建立 socket、bind、listen。
 5. 初始化成功後，透過 `promise` 通知主執行緒。

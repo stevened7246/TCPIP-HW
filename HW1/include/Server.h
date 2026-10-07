@@ -2,6 +2,7 @@
 #include "ChatServices.h"
 #include <atomic>
 #include <future>
+
 namespace chat {
 class Server {
     ChatServices services_;

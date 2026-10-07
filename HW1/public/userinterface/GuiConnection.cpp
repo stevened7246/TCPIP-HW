@@ -140,7 +140,7 @@ void GuiConnection::receiveLoop(const std::string &address, unsigned short port,
         endpoint.sin_family = AF_INET;
         endpoint.sin_port = htons(port);
         if (inet_pton(AF_INET, address.c_str(), &endpoint.sin_addr) != 1)
-            throw std::runtime_error("Please enter an IPv4 address, e.g. 127.0.0.1");
+            throw std::runtime_error("Please enter the server IPv4 address (Tailscale or LAN)");
         u_long nonblocking = 1;
         ioctlsocket(socket, FIONBIO, &nonblocking);
         int result = connect(socket, reinterpret_cast<sockaddr *>(&endpoint), sizeof endpoint);

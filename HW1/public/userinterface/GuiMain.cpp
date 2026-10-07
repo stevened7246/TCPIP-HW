@@ -439,7 +439,11 @@ struct App {
                 } else if (!p.fields.empty()) {
                     const auto &text = p.fields[0];
                     if (p.type == PacketType::Ok && text.rfind("Joined ", 0) == 0) {
-                        currentRoom = wide(text.substr(7));
+                        auto nextRoom = wide(text.substr(7));
+                        if (nextRoom != currentRoom) {
+                            SetWindowTextW(get(Transcript), L"");
+                        }
+                        currentRoom = nextRoom;
                         status = nickname + L" · " + currentRoom;
                     }
                     if (p.type == PacketType::Ok && text == "Left room") {
@@ -518,7 +522,9 @@ void App::initialize() {
         }
     }
     add(Nick, L"EDIT", L"", ES_AUTOHSCROLL);
-    add(Host, L"EDIT", L"127.0.0.1", ES_AUTOHSCROLL);
+    add(Host, L"EDIT", L"", ES_AUTOHSCROLL);
+    SendMessageW(get(Host), EM_SETCUEBANNER, FALSE,
+                 reinterpret_cast<LPARAM>(L"伺服器的 Tailscale 或區網 IPv4"));
     add(Port, L"EDIT", L"9000", ES_NUMBER | ES_AUTOHSCROLL);
     for (int id : {Nick, Host, Port}) {
         SendMessageW(get(id), EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN,
