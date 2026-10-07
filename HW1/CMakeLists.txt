@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
+# 建置 Windows 聊天室、共用協定與測試程式。
 project(WinsockChat LANGUAGES CXX RC)
 if(NOT WIN32)
   message(FATAL_ERROR "This project requires Windows Winsock")
@@ -6,8 +7,10 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(chat_protocol service/protocol/PacketParser.cpp service/protocol/PacketSerializer.cpp)
+# 收送協定由伺服器、命令列及 GUI 共用，ws2_32 提供 Winsock。
 target_include_directories(chat_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(chat_protocol PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0601)
+# PUBLIC 會傳給連結此函式庫的目標；NOMINMAX 避免 Windows 巨集干擾 std::min/max。
 target_link_libraries(chat_protocol PUBLIC ws2_32)
 add_executable(chat_server
   main.cpp
@@ -35,6 +38,7 @@ else()
 endif()
 
 include(CTest)
+# 找到 Python 時，註冊使用真實執行檔的整合測試。
 if(BUILD_TESTING)
  find_package(Python3 COMPONENTS Interpreter)
  if(Python3_FOUND)
@@ -56,6 +60,7 @@ target_compile_definitions(chat_gui PRIVATE UNICODE _UNICODE)
 target_link_libraries(chat_gui PRIVATE chat_protocol uuid gdiplus comctl32 comdlg32 ole32 shell32)
 
 set_target_properties(chat_gui PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gui")
+# GUI 使用獨立輸出目錄；單一組態 MinGW 的程式位於 build/gui/chat_gui.exe。
 
 if(BUILD_TESTING)
  add_executable(gui_connection_test tests/gui_connection_test.cpp public/userinterface/GuiConnection.cpp)

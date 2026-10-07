@@ -1,5 +1,6 @@
 """Black-box tests against the actual Winsock executables (stdlib only)."""
 import concurrent.futures
+# 使用本機暫時伺服器，驗證登入、房間隔離、分段封包與各用戶端。
 import pathlib
 import queue
 import socket
@@ -17,6 +18,7 @@ GUI_TEST = pathlib.Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else None
 del sys.argv[1:]
 
 def wire(kind, *fields):
+    # 與 C++ 相同：12-byte 標頭，各欄位為 4-byte 長度加原始內容。
     body = b''.join(struct.pack('!I', len(f)) + f for f in fields)
     return struct.pack('!IHHI', 0x43484154, 1, kind, len(body)) + body
 
@@ -42,6 +44,7 @@ def receive(s):
 class Integration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # 請系統選可用連接埠，啟動伺服器後輪詢直到能連線。
         with socket.socket() as probe:
             probe.bind(('127.0.0.1', 0))
             cls.port = probe.getsockname()[1]
@@ -114,6 +117,7 @@ class Integration(unittest.TestCase):
         self.request(a, 4, b'missing', expected=101)
 
     def test_fragmented_and_coalesced_frames(self):
+        # 逐 byte 傳送及一次傳多包，驗證解析不依賴單次 recv 的分段方式。
         s = self.connect()
         for byte in wire(1, b'fragment'):
             s.sendall(bytes([byte]))
@@ -122,6 +126,7 @@ class Integration(unittest.TestCase):
         self.assertEqual([receive(s)[0] for _ in range(3)], [102, 100, 100])
 
     def test_binary_file_and_validation(self):
+        # 傳送含所有 byte 值的 1 MiB 資料，比對內容，再驗證大小與檔名限制。
         a, b = self.connect('file_a'), self.connect('file_b')
         self.request(a, 3, b'files')
         self.request(a, 4, b'files')
@@ -137,6 +142,7 @@ class Integration(unittest.TestCase):
         self.request(a, 6, b'x' * 4097, expected=101)
 
     def test_malformed_frames(self):
+        # 錯 magic、版本、payload 或欄位長度應斷線，伺服器仍需能服務新連線。
         cases = [struct.pack('!IHHI', 0, 1, 1, 0),
                  struct.pack('!IHHI', 0x43484154, 2, 1, 0),
                  struct.pack('!IHHI', 0x43484154, 1, 1, 0xffffffff),
@@ -153,6 +159,7 @@ class Integration(unittest.TestCase):
         self.request(s, 999, expected=101)
 
     def test_concurrent_broadcast(self):
+        # 8 個發送者同時傳送，每個接收者都應收到完整且不交錯的 8 則訊息。
         clients = [self.connect('parallel_' + str(i)) for i in range(8)]
         self.request(clients[0], 3, b'parallel')
         for s in clients:
@@ -202,6 +209,7 @@ class Integration(unittest.TestCase):
                 process.stdin.close(); process.stdout.close()
 
     def test_shutdown_with_partial_packet(self):
+        # 刻意只傳部分標頭，確認停止伺服器能解除阻塞 recv 並正常退出。
         with socket.socket() as probe:
             probe.bind(('127.0.0.1', 0))
             port = probe.getsockname()[1]

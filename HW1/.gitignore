@@ -1,4 +1,5 @@
 build/
+# 忽略建置產物、下載附件及 Python 快取。
 build-vs/
 downloads/
 __pycache__/

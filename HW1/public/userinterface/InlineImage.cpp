@@ -1,3 +1,4 @@
+// 使用 GDI+ 解碼縮圖，再透過 RTF/OLE 插入 RichEdit 聊天紀錄。
 #include "InlineImage.h"
 #include <objidl.h>
 #include <gdiplus.h>
@@ -98,6 +99,7 @@ DWORD CALLBACK readRtf(DWORD_PTR cookie, LPBYTE target, LONG length, LONG *read)
     return 0;
 }
 void boundImages(HWND transcript) {
+    // 只限制嵌入圖片數量；超過 24 張時刪除最早的圖片物件。
     IRichEditOle *objects = nullptr;
     if (!SendMessageW(transcript, EM_GETOLEINTERFACE, 0, reinterpret_cast<LPARAM>(&objects)) ||
         !objects)
@@ -130,9 +132,11 @@ bool appendInlineImage(HWND transcript, const std::filesystem::path &path, int m
           IsEqualGUID(format, Gdiplus::ImageFormatBMP)))
         return false;
     const auto originalWidth = original.GetWidth(), originalHeight = original.GetHeight();
+    // 限制解碼後的尺寸及總像素，不只檢查附件檔案大小。
     if (!originalWidth || !originalHeight || originalWidth > 8192 || originalHeight > 8192 ||
         static_cast<uint64_t>(originalWidth) * originalHeight > 25000000)
         return false;
+    // 保持比例且不放大原圖，同時符合寬高限制。
     double ratio = std::min({1.0, static_cast<double>(maxWidth) / originalWidth,
                              static_cast<double>(maxHeight) / originalHeight});
     int width = std::max(1, static_cast<int>(originalWidth * ratio));
@@ -156,6 +160,7 @@ bool appendInlineImage(HWND transcript, const std::filesystem::path &path, int m
     info.bmiHeader.biBitCount = 24;
     info.bmiHeader.biCompression = BI_RGB;
     const size_t stride = (static_cast<size_t>(width) * 3 + 3) & ~size_t(3);
+    // 24-bit DIB 每列需對齊 4 bytes，不能直接用 width * 3 當列長。
     const size_t pixelBytes = stride * height;
     std::vector<unsigned char> dib(sizeof(BITMAPINFOHEADER) + pixelBytes);
     HDC dc = GetDC(nullptr);
@@ -170,6 +175,7 @@ bool appendInlineImage(HWND transcript, const std::filesystem::path &path, int m
                       std::to_string(height) + "\\picwgoal" + std::to_string(width * 1440 / dpi) +
                       "\\pichgoal" + std::to_string(height * 1440 / dpi) + " ";
     static constexpr char hex[] = "0123456789abcdef";
+    // RTF 圖片資料以十六進位文字表示，每個 DIB byte 轉成兩個字元。
     rtf.reserve(rtf.size() + dib.size() * 2 + 32);
     for (auto byte : dib) {
         rtf.push_back(hex[byte >> 4]);

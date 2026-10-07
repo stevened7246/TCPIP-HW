@@ -1,3 +1,4 @@
+// 宣告 GUI 背景網路連線與事件佇列，供 UI 執行緒取出結果。
 #pragma once
 #include "protocol/Packet.h"
 #include <windows.h>
@@ -10,6 +11,7 @@
 
 namespace chat {
 constexpr UINT NetworkEvent = WM_APP + 1;
+// 背景工作只送通知，不把事件指標放進訊息；UI 透過 drain 取出整批事件。
 struct GuiEvent {
     enum Kind { Connected, Incoming, Failure, Disconnected } kind;
     Packet packet{PacketType::Ok, {}};
@@ -33,6 +35,8 @@ class GuiConnection {
     std::mutex mutex_;
     std::condition_variable condition_;
     bool connected_ = false;
+    // connected_、兩個佇列與 outgoingBytes_ 都由 mutex_ 保護。
+    // socket_ 與 stopping_ 是 atomic，允許取消操作和背景執行緒共享狀態。
     std::deque<Packet> outgoing_;
     std::deque<GuiEvent> events_;
     size_t outgoingBytes_ = 0;

@@ -1,3 +1,4 @@
+// Win32 GUI 入口與視窗事件處理，負責版面、操作與聊天內容顯示。
 #include "GuiConnection.h"
 #include "InlineImage.h"
 #include <windows.h>
@@ -80,9 +81,11 @@ struct App {
         return controls[id - 100];
     }
     int px(int logical) const {
+        // 版面使用邏輯尺寸，繪製與配置時轉為目前 DPI 的像素。
         return static_cast<int>(logical * scale);
     }
     ~App() {
+        // 先停止網路執行緒，再釋放視窗使用的圖片、字型與筆刷。
         network.reset();
         background.reset();
         if (imageStream)
@@ -115,6 +118,7 @@ struct App {
                   DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
     }
     void append(const std::wstring &text, COLORREF color = Ink) {
+        // 聊天紀錄過長時清理舊內容，避免 RichEdit 持續累積。
         HWND log = get(Transcript);
         if (GetWindowTextLengthW(log) > 100000) {
             SendMessageW(log, EM_SETSEL, 0, 20000);
@@ -131,6 +135,7 @@ struct App {
         SendMessageW(log, EM_SCROLLCARET, 0, 0);
     }
     void updateControls() {
+        // 連線中或已連線時鎖住連線參數；送訊息按鈕還需確認已加入房間。
         for (int id : {Nick, Host, Port})
             EnableWindow(get(id), !busy && !connected);
         for (int id : {Rooms, Refresh, Join, Leave, RoomName, Create})
@@ -141,6 +146,7 @@ struct App {
         InvalidateRect(window, nullptr, FALSE);
     }
     bool submit(Packet packet) {
+        // true 只表示成功排入傳送佇列，尚不代表伺服器已接受或收到。
         if (network->send(std::move(packet)))
             return true;
         append(L"傳送佇列已滿或連線已關閉，請稍後重試。", RGB(255, 145, 145));
@@ -248,6 +254,7 @@ struct App {
         }
     }
     void connect() {
+        // 同一按鈕依狀態負責連線、取消連線或斷線；網路工作交給 GuiConnection。
         if (busy || connected) {
             network->stop();
             busy = connected = false;
@@ -288,6 +295,7 @@ struct App {
         }
     }
     void sendText() {
+        // 寬字元輸入先轉 UTF-8，以 bytes 檢查大小，中文字不等於一 byte。
         if (!connected || currentRoom.empty())
             return;
         auto text = utf8(value(get(Input)));
@@ -303,6 +311,7 @@ struct App {
         }
     }
     void sendFile() {
+        // 只傳 basename 與檔案內容，不把使用者的完整本機路徑送給伺服器。
         wchar_t filename[32768]{};
         OPENFILENAMEW dialog{};
         dialog.lStructSize = sizeof dialog;
@@ -330,6 +339,7 @@ struct App {
         }
     }
     void command(int id, int notification) {
+        // WM_COMMAND 的控制項 ID 決定操作；房間列表只在雙擊時直接加入。
         if (id == Connect) {
             connect();
             return;
@@ -395,6 +405,8 @@ struct App {
         }
     }
     void incoming() {
+        // 由 UI 執行緒處理 NetworkEvent；背景收送執行緒不直接操作控制項。
+        // File 的第四欄已由接收端轉成下載路徑，這裡用該路徑顯示附件及縮圖。
         for (auto &event : network->drain()) {
             if (event.kind == GuiEvent::Connected) {
                 busy = false;

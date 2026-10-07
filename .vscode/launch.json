@@ -1,4 +1,5 @@
 {
+    // F5 前自動建置，可分別啟動伺服器、GUI、命令列，或一起啟動伺服器與 GUI。
     "version": "0.2.0",
     "configurations": [
         {

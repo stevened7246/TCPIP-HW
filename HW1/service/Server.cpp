@@ -1,3 +1,4 @@
+// 監聽 IPv4 TCP 連線，分派封包並管理最多 64 個連線 worker。
 #include "Server.h"
 #include <ws2tcpip.h>
 #include <thread>
@@ -5,6 +6,7 @@
 #include <stdexcept>
 namespace chat {
 void Server::serve(const Session &session) {
+    // 此函式由該連線的 worker 執行；每次只處理一個已收齊的請求。
     try {
         Packet packet{};
         while (!stopping_ && receivePacket(session->socket, packet)) {
@@ -33,6 +35,7 @@ void Server::serve(const Session &session) {
         std::cerr << "Client error: " << e.what() << '\n';
     }
     services_.detach(session);
+    // 無論正常離線、協定錯誤或例外，都移除服務登記並釋放 socket。
     session->close();
 }
 void Server::run(unsigned short port, const std::string &bindAddress, std::promise<void> &started) {
@@ -61,11 +64,13 @@ void Server::run(unsigned short port, const std::string &bindAddress, std::promi
     };
     std::vector<Worker> workers;
     started.set_value();
+    // bind 與 listen 已成功，通知主執行緒可以開始接受 /quit 控制指令。
     std::cout << "Listening on " << bindAddress << ":" << port << "; enter /quit to stop."
               << std::endl;
     try {
         while (!stopping_) {
             for (auto it = workers.begin(); it != workers.end();) {
+                // 已結束的 worker 先 join 再移除，回收執行緒與連線名額。
                 if (*it->done) {
                     it->thread.join();
                     it = workers.erase(it);
@@ -76,6 +81,7 @@ void Server::run(unsigned short port, const std::string &bindAddress, std::promi
             FD_ZERO(&readable);
             FD_SET(listener, &readable);
             timeval timeout{0, 200000};
+            // 每 200 ms 檢查停止旗標，避免 accept 永久阻塞關機流程。
             int ready = select(0, &readable, nullptr, nullptr, &timeout);
             if (ready == SOCKET_ERROR)
                 throw std::runtime_error("select failed");
@@ -89,6 +95,7 @@ void Server::run(unsigned short port, const std::string &bindAddress, std::promi
                 continue;
             }
             DWORD sendTimeout = 3000, receiveTimeout = 300000;
+            // Winsock 逾時單位是毫秒：送出 3 秒、單次接收等待 5 分鐘。
             setsockopt(peer, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char *>(&sendTimeout),
                        sizeof sendTimeout);
             setsockopt(peer, SOL_SOCKET, SO_RCVTIMEO,
@@ -119,6 +126,7 @@ void Server::run(unsigned short port, const std::string &bindAddress, std::promi
         throw;
     }
     closesocket(listener);
+    // 關閉用戶端 socket 以喚醒阻塞中的 recv，再等待 worker 結束。
     services_.interruptAll();
     for (auto &worker : workers)
         worker.thread.join();

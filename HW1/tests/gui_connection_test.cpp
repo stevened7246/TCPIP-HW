@@ -1,3 +1,4 @@
+// 測試 GUI 網路層的事件、訊息與檔案收送，不操作可見聊天視窗。
 #include "public/userinterface/GuiConnection.h"
 #include "FileStorage.h"
 #include <chrono>
@@ -7,6 +8,7 @@
 using namespace chat;
 using Clock = std::chrono::steady_clock;
 template <class Predicate> GuiEvent awaitEvent(GuiConnection &connection, Predicate predicate) {
+    // 輪詢事件佇列直到指定結果出現；設期限避免失敗時永久等待。
     auto deadline = Clock::now() + std::chrono::seconds(6);
     while (Clock::now() < deadline) {
         for (auto &event : connection.drain())
@@ -21,6 +23,7 @@ void require(bool ok, const char *text) {
         throw std::runtime_error(text);
 }
 int main(int argc, char **argv) {
+    // 參數由 Python 整合測試提供：伺服器連接埠、暫時下載目錄。
     if (argc != 3)
         return 2;
     WSADATA data{};

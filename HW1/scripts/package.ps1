@@ -3,6 +3,7 @@ param(
     [string]$ToolchainBin = 'D:\msys2\ucrt64\bin'
 )
 $ErrorActionPreference = 'Stop'
+# 將已編譯程式、必要 DLL、使用說明與授權整理成用戶端及伺服器 ZIP。
 $build = (Resolve-Path -LiteralPath $BuildDirectory).Path
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $objdump = Join-Path $ToolchainBin 'objdump.exe'
@@ -15,9 +16,11 @@ $destination = Join-Path $build "packages\$stamp"
 New-Item -ItemType Directory -Path $destination | Out-Null
 
 function Copy-RuntimeDependencies([string]$Binary, [string]$Folder) {
+    # 遞迴檢查 DLL 相依，只複製工具鏈的執行期 DLL，系統 DLL 保留由 Windows 提供。
     $pending = [System.Collections.Generic.Queue[string]]::new()
     $seen = @{}
     $pending.Enqueue($Binary)
+    # queue 追蹤仍待檢查的 EXE/DLL，seen 避免重複複製或相依循環。
     while ($pending.Count -gt 0) {
         $current = $pending.Dequeue()
         $imports = & $objdump -p $current
@@ -40,6 +43,7 @@ function Copy-RuntimeDependencies([string]$Binary, [string]$Folder) {
 }
 
 foreach ($kind in @('client', 'server')) {
+    # 用戶端只包含 GUI；伺服器另附啟動腳本，兩者各自帶必要 DLL。
     $folder = Join-Path $destination "nightlink-$kind"
     New-Item -ItemType Directory -Path $folder | Out-Null
     if ($kind -eq 'client') {
@@ -67,6 +71,7 @@ pause
         if (Test-Path -LiteralPath $notice) { Copy-Item -LiteralPath $notice -Destination $licenses -Recurse }
     }
     $manifest = Get-ChildItem -LiteralPath $folder -File | ForEach-Object {
+        # 為包內頂層檔案計算 SHA-256，方便收件者檢查內容是否完整。
         '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash, $_.Name
     }
     $manifest | Set-Content -LiteralPath (Join-Path $folder 'SHA256SUMS.txt') -Encoding UTF8

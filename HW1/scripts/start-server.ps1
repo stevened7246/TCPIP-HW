@@ -1,4 +1,5 @@
 param([ValidateRange(1, 65535)][int]$Port = 9000)
+# 發行包啟動入口：取得本機 Tailscale IPv4，僅綁定此位址啟動伺服器。
 $ErrorActionPreference = 'Stop'
 try {
     $tailscale = Join-Path $env:ProgramFiles 'Tailscale\tailscale.exe'
@@ -6,6 +7,7 @@ try {
     $addresses = & $tailscale ip -4
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Tailscale IP. Check sign-in and Tailscale service.' }
     $address = @($addresses | Where-Object { $_ -match '^100\.\d+\.\d+\.\d+$' }) | Select-Object -First 1
+    # 從工具回傳值中選 Tailscale IPv4；找不到就退出，不改綁定所有網卡。
     if (-not $address) { throw 'No Tailscale IPv4 found. Connect Tailscale first.' }
     Write-Host "Chat server address: $address  TCP port: $Port"
     Write-Host 'Share this IPv4 and port with invited Tailscale users.'

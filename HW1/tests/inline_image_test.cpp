@@ -1,3 +1,4 @@
+// 測試圖片解碼、縮圖插入、格式辨識與 RichEdit 圖片數量限制。
 #include "public/userinterface/InlineImage.h"
 #include <objidl.h>
 #include <gdiplus.h>
@@ -23,6 +24,7 @@ CLSID encoder(const wchar_t *mime) {
     throw std::runtime_error("image encoder missing");
 }
 LONG objectCount(HWND edit) {
+    // 透過 OLE 物件數確認圖片真的插入 RichEdit，不只檢查函式回傳值。
     IRichEditOle *objects = nullptr;
     require(SendMessageW(edit, EM_GETOLEINTERFACE, 0, reinterpret_cast<LPARAM>(&objects)) &&
                 objects,
@@ -32,6 +34,7 @@ LONG objectCount(HWND edit) {
     return count;
 }
 int main() {
+    // 測試自行初始化 OLE/GDI+ 與 RichEdit，直接檢查圖片物件及插入結果。
     require(SUCCEEDED(OleInitialize(nullptr)), "OLE startup");
     Gdiplus::GdiplusStartupInput startup;
     ULONG_PTR token = 0;

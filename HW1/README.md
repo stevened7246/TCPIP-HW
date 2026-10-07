@@ -1,4 +1,5 @@
 # Winsock 多執行緒聊天室
+<!-- 開發文件：建置、啟動、目錄架構、TCP 協定與測試方式。 -->
 
 透過 Tailscale 分享給朋友使用，請先閱讀 [使用說明書](說明書.md)，內含主機設定、客戶端分發、三項功能驗收與故障排除。打包指令為 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1`（先完成建置與測試）。
 

@@ -1,4 +1,5 @@
 {
+    // C/C++ IntelliSense 的標頭搜尋、巨集及語言版本；實際編譯參數由 CMake 決定。
     "configurations": [
         {
             "name": "Win32",

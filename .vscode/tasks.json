@@ -1,4 +1,5 @@
 {
+    // 先用 CMake 設定 Debug 建置，再編譯；Ctrl+Shift+B 執行預設 Build。
     "version": "2.0.0",
     "tasks": [
         {

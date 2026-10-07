@@ -1,3 +1,4 @@
 {
+    // CMake 擴充套件的原始碼目錄；此路徑需對應目前開啟的專案位置。
     "cmake.sourceDirectory": "D:/vcode/TCPIP-HW/HW1"
 }

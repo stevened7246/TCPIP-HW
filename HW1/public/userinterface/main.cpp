@@ -1,3 +1,4 @@
+// 命令列用戶端：主執行緒讀取指令，接收執行緒顯示訊息與保存附件。
 #include "protocol/Packet.h"
 #include "FileStorage.h"
 #include <ws2tcpip.h>
@@ -21,6 +22,7 @@ int main(int argc, char **argv) {
         return 1;
     addrinfo hints{}, *addresses = nullptr;
     hints.ai_family = AF_INET;
+    // 只連 IPv4；getaddrinfo 可以解析主機名，再逐一嘗試可用位址。
     hints.ai_socktype = SOCK_STREAM;
     SOCKET socketHandle = INVALID_SOCKET;
     if (!getaddrinfo(argc > 2 ? argv[2] : "127.0.0.1", argc > 3 ? argv[3] : "9000", &hints,
@@ -47,6 +49,7 @@ int main(int argc, char **argv) {
     sendPacket(socketHandle, {PacketType::Login, {argv[1]}});
     std::atomic<bool> running{true};
     std::mutex output;
+    // running 讓接收端通知主迴圈停止，output 防止兩條執行緒交錯輸出文字。
     std::thread receiver([&] {
         Packet p{};
         unsigned long counter = 0;
@@ -91,6 +94,7 @@ int main(int argc, char **argv) {
         if (!running || line == "/quit")
             break;
         Packet p{PacketType::SendMessage, {line}};
+        // 預設將輸入當聊天文字；符合已知 / 指令時改成對應封包。
         if (line == "/rooms")
             p = {PacketType::ListRooms, {}};
         else if (line == "/leave")
@@ -105,6 +109,7 @@ int main(int argc, char **argv) {
             try {
                 auto path = std::filesystem::u8path(line.substr(6));
                 std::ifstream file(path, std::ios::binary | std::ios::ate);
+                // ate 先定位檔尾取得大小，配置內容後 seekg(0) 回到檔頭讀取。
                 if (!file || file.tellg() < 0 || file.tellg() > 1024 * 1024)
                     throw std::runtime_error("File missing or larger than 1 MiB");
                 std::string content(static_cast<size_t>(file.tellg()), '\0');
@@ -127,6 +132,7 @@ int main(int argc, char **argv) {
         }
     }
     shutdown(socketHandle, SD_BOTH);
+    // 先中斷 socket，喚醒接收執行緒，再 join；直接 join 可能卡在 recv。
     closesocket(socketHandle);
     receiver.join();
     WSACleanup();

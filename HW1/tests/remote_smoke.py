@@ -3,6 +3,7 @@ Uses real TCP clients and a valid generated PNG; it does not automate the GUI.
 Remote runs create one test room (the protocol has no room deletion).
 """
 import argparse
+# 驗證指定主機的 TCP 協定；會建立測試房間，不等同 GUI 或跨裝置目視測試。
 import contextlib
 import hashlib
 import json
@@ -61,6 +62,7 @@ def request(sock, kind, *fields, expected=100):
 
 
 def png_fixture():
+    # 產生有效的 2 × 2 PNG，便於比對雙向傳輸後的完整檔案內容。
     def chunk(kind, data):
         return struct.pack('!I', len(data)) + kind + data + struct.pack('!I', zlib.crc32(kind + data))
     # Two rows of two RGB pixels; each row begins with PNG filter byte zero.
@@ -70,6 +72,7 @@ def png_fixture():
 
 
 def run(host, port):
+    # 建立兩名同房使用者與一名房外使用者，比對文字、PNG 及隔離效果。
     suffix = uuid.uuid4().hex[:10]
     room = ('verify_' + suffix).encode()
     results = []
@@ -124,6 +127,7 @@ def run(host, port):
 
 
 def main():
+    # --start-server 只用於本機暫時伺服器；未提供時測試既有服務。
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', required=True, help='Numeric server IPv4')
     parser.add_argument('--port', type=int, default=9000)

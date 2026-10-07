@@ -1,3 +1,4 @@
+// 保存單一用戶端的連線、暱稱與所在房間，並同步傳送及關閉操作。
 #pragma once
 #include "protocol/Packet.h"
 #include "User.h"
@@ -11,8 +12,11 @@ struct ClientSession {
     std::string room;
     std::mutex sendMutex;
     bool closed = false; // guarded by sendMutex
+    // user / room 由 ChatServices 的 mutex_ 保護；closed 由 sendMutex 保護。
+    // socket 值不改變；close 以 closed 保證此連線只關閉一次。
 
     bool send(const Packet &packet) {
+        // 同一 socket 的封包不可交錯傳送，整個封包共用一把傳送鎖。
         std::lock_guard<std::mutex> lock(sendMutex);
         if (closed)
             return false;
